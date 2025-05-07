@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时代码生成演示 (真实流式API) - AIROB</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #3498db;
+            font-size: 1.2rem;
+            font-weight: normal;
+        }
+        .input-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .output-section {
+            margin-top: 30px;
+        }
+        .status-box {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+        }
+        .code-container {
+            position: relative;
+            margin-top: 20px;
+        }
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: #f1f2f6;
+            border-radius: 6px 6px 0 0;
+            border: 1px solid #ddd;
+            border-bottom: none;
+        }
+        .code-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .code-actions button {
+            padding: 6px 12px;
+            margin-left: 8px;
+            font-size: 14px;
+        }
+        .code-content {
+            height: 600px;
+            overflow: auto;
+            padding: 15px;
+            background-color: #282c34;
+            color: #abb2bf;
+            border-radius: 0 0 6px 6px;
+            white-space: pre-wrap;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            border: 1px solid #ddd;
+        }
+        .preview-container {
+            margin-top: 30px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .preview-header {
+            padding:.75rem 1.25rem;
+            font-weight: 600;
+            background-color: #f1f2f6;
+            border-bottom: 1px solid #ddd;
+        }
+        .preview-content {
+            height: 500px;
+            overflow: auto;
+            background-color: white;
+        }
+        .hidden {
+            display: none;
+        }
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #abb2bf;
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .status-info {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status-info.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .status-info.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-info.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .timer {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 10px;
+            text-align: right;
+        }
+        .api-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .api-selector label {
+            display: inline-block;
+            margin-right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>实时代码生成演示</h1>
+        <h2>使用真实流式API - 代码会逐字符实时显示</h2>
+
+        <div class="input-section">
+            <form id="generationForm">
+                <div class="api-selector">
+                    <label>
+                        <input type="radio" name="apiType" value="real" checked>
+                        使用真实流式API (实时生成)
+                    </label>
+                    <label>
+                        <input type="radio" name="apiType" value="simulated">
+                        使用模拟流式API (先生成后分段显示)
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">网页描述</label>
+                    <textarea id="description" name="description" placeholder="请描述您想要生成的网页，例如：一个花店的官网，包含商品展示、关于我们和联系方式等板块"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="style">设计风格</label>
+                    <select id="style" name="style">
+                        <option value="modern">现代简约风格</option>
+                        <option value="corporate">企业商务风格</option>
+                        <option value="creative">创意设计风格</option>
+                        <option value="minimal">极简风格</option>
+                        <option value="tech">科技风格</option>
+                    </select>
+                </div>
+                <button type="submit" id="generateBtn">开始生成</button>
+            </form>
+        </div>
+
+        <div class="output-section hidden" id="outputSection">
+            <div class="status-box" id="statusBox">
+                <div class="status-info info" id="statusInfo">准备中...</div>
+                <div class="timer" id="timerDisplay">耗时: 0秒</div>
+            </div>
+            
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title">生成的HTML代码</span>
+                    <div class="code-actions">
+                        <button id="copyBtn">复制代码</button>
+                    </div>
+                </div>
+                <div class="code-content" id="codeOutput"><span class="cursor"></span></div>
+            </div>
+            
+            <div class="preview-container hidden" id="previewContainer">
+                <div class="preview-header">预览效果</div>
+                <iframe id="previewFrame" class="preview-content" sandbox="allow-same-origin allow-scripts"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('generationForm');
+            const generateBtn = document.getElementById('generateBtn');
+            const outputSection = document.getElementById('outputSection');
+            const statusInfo = document.getElementById('statusInfo');
+            const codeOutput = document.getElementById('codeOutput');
+            const copyBtn = document.getElementById('copyBtn');
+            const previewContainer = document.getElementById('previewContainer');
+            const previewFrame = document.getElementById('previewFrame');
+            const timerDisplay = document.getElementById('timerDisplay');
+            
+            let startTime;
+            let timerInterval;
+            let finalHtml = '';
+            
+            // 更新计时器显示
+            function updateTimer() {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                timerDisplay.textContent = `耗时: ${elapsed}秒`;
+            }
+            
+            // 开始计时
+            function startTimer() {
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000);
+            }
+            
+            // 停止计时
+            function stopTimer() {
+                clearInterval(timerInterval);
+            }
+            
+            // 复制代码按钮
+            copyBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(finalHtml).then(() => {
+                    copyBtn.textContent = '已复制!';
+                    setTimeout(() => {
+                        copyBtn.textContent = '复制代码';
+                    }, 2000);
+                });
+            });
+            
+            // 提交表单
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const description = document.getElementById('description').value.trim();
+                const style = document.getElementById('style').value;
+                const apiType = document.querySelector('input[name="apiType"]:checked').value;
+                
+                if (!description) {
+                    alert('请输入网页描述!');
+                    return;
+                }
+                
+                // 重置界面
+                codeOutput.innerHTML = '<span class="cursor"></span>';
+                previewContainer.classList.add('hidden');
+                outputSection.classList.remove('hidden');
+                generateBtn.disabled = true;
+                statusInfo.textContent = '准备中...';
+                statusInfo.className = 'status-info info';
+                
+                startTimer();
+                
+                // 创建 EventSource 进行流式连接
+                fetchStreamingResponse(description, style, apiType);
+            });
+            
+            async function fetchStreamingResponse(description, style, apiType) {
+                try {
+                    // 根据选择的API类型决定请求的端点
+                    const endpoint = apiType === 'real' ? 
+                        '/api/v1/generator/generate-stream-real' : 
+                        '/api/v1/generator/generate-stream';
+                    
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ description, style })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误! 状态: ${response.status}`);
+                    }
+                    
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let accumulatedHTML = '';
+                    
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        
+                        if (done) {
+                            break;
+                        }
+                        
+                        const text = decoder.decode(value);
+                        const events = text.split('\n\n').filter(e => e.trim().startsWith('data:'));
+                        
+                        for (const event of events) {
+                            if (!event.trim()) continue;
+                            
+                            try {
+                                const dataStr = event.substring(event.indexOf('data:') + 5).trim();
+                                if (dataStr === '[DONE]') continue;
+                                
+                                const data = JSON.parse(dataStr);
+                                
+                                // 处理不同类型的事件
+                                switch (data.type) {
+                                    case 'status':
+                                        statusInfo.textContent = data.message;
+                                        break;
+                                        
+                                    case 'content':
+                                        // 实时更新代码显示
+                                        codeOutput.innerHTML = data.accumulatedHTML + '<span class="cursor"></span>';
+                                        // 自动滚动到底部
+                                        codeOutput.scrollTop = codeOutput.scrollHeight;
+                                        break;
+                                        
+                                    case 'complete':
+                                        // 生成完成，显示最终代码并启用预览
+                                        finalHtml = data.html;
+                                        codeOutput.innerHTML = finalHtml;
+                                        codeOutput.scrollTop = 0;
+                                        
+                                        // 更新状态并停止计时
+                                        statusInfo.textContent = `生成完成! 用时 ${data.time} 秒`;
+                                        statusInfo.className = 'status-info success';
+                                        stopTimer();
+                                        
+                                        // 显示预览
+                                        previewContainer.classList.remove('hidden');
+                                        const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+                                        previewDoc.open();
+                                        previewDoc.write(finalHtml);
+                                        previewDoc.close();
+                                        break;
+                                        
+                                    case 'error':
+                                        statusInfo.textContent = data.error;
+                                        statusInfo.className = 'status-info error';
+                                        stopTimer();
+                                        break;
+                                }
+                            } catch (e) {
+                                console.error('处理事件错误:', e, event);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('流式请求出错:', error);
+                    statusInfo.textContent = `错误: ${error.message}`;
+                    statusInfo.className = 'status-info error';
+                    stopTimer();
+                } finally {
+                    generateBtn.disabled = false;
+                }
+            }
+        });
+    </script>
+</body>
+</html> 
