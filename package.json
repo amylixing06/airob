@@ -10,7 +10,9 @@
   "dependencies": {
     "@headlessui/vue": "^1.7.19",
     "@heroicons/vue": "^2.1.1",
+    "abort-controller": "^3.0.0",
     "axios": "^1.6.7",
+    "node-fetch": "^2.7.0",
     "pinia": "^2.1.7",
     "tailwindcss": "^3.4.1",
     "vue": "^3.4.15",

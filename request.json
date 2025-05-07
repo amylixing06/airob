@@ -1,0 +1,15 @@
+{
+  "model": "deepseek-chat",
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是一个专业的前端开发者，擅长生成高质量的HTML网页代码。"
+    },
+    {
+      "role": "user",
+      "content": "生成一个简单的HTML页面，标题为测试页面"
+    }
+  ],
+  "temperature": 0.5,
+  "max_tokens": 2000
+} 

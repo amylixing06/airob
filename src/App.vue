@@ -2,40 +2,24 @@
 import { ref, computed, onMounted, provide } from 'vue';
 import HomePage from './components/HomePage.vue';
 import Workbench from './components/Workbench.vue';
+import { generateHtml, refineHtml, testApiConnection as testApi } from './api/generator';
+import { showDebugPanel } from './utils/debug';
 
 // 错误接口
 interface ApiError {
   message: string;
+  status?: number;
 }
 
 // 版本号 - v1.1.0
 // 使用相对路径解决CORS问题
 const apiBaseUrl = '/api/v1';
 
-// 是否使用本地模拟数据（当API连接失败时）
-const useLocalMock = ref(false);
-// 是否强制使用API模式
-const forceApiMode = ref(false);
 // 当前视图模式：'home' | 'workbench'
 const currentView = ref<'home' | 'workbench'>('home');
 
-// 计算当前模式
-const currentMode = computed(() => {
-  if (forceApiMode.value) return 'api';
-  return useLocalMock.value ? 'local' : 'api';
-});
-
-// 提供当前模式给子组件
-provide('currentMode', currentMode);
-
-// 切换模式
-const toggleMode = () => {
-  forceApiMode.value = !forceApiMode.value;
-  if (forceApiMode.value) {
-    useLocalMock.value = false;
-    testApiConnection();
-  }
-};
+// 提供当前模式给子组件 - 始终为API模式
+provide('currentMode', 'api');
 
 const code = ref(`<!DOCTYPE html>
 <html>
@@ -75,8 +59,8 @@ const styles = [
 
 // 获取用户最近的生成记录
 onMounted(async () => {
-  // 这里可以添加从localStorage或API获取最近生成记录的逻辑
-  // 目前先用默认代码
+  // 显示调试面板
+  showDebugPanel('应用已启动');
   
   // 测试API连接
   testApiConnection();
@@ -84,115 +68,21 @@ onMounted(async () => {
 
 // 测试API连接是否可用
 const testApiConnection = async () => {
-  if (forceApiMode.value) {
-    useLocalMock.value = false;
-    error.value = '已切换到API模式';
-    setTimeout(() => {
-      error.value = '';
-    }, 3000);
-    return;
-  }
-  
   try {
-    const response = await fetch(`${apiBaseUrl}/generator/generate`, {
-      method: 'HEAD',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const isConnected = await testApi();
     
-    if (!response.ok) {
-      throw new Error(`API错误: ${response.status}`);
+    if (!isConnected) {
+      throw new Error('API连接测试失败');
     }
     
-    useLocalMock.value = false;
     console.log('API连接成功');
   } catch (e) {
-    if (forceApiMode.value) {
-      // 如果强制API模式但连接失败
-      error.value = 'API连接失败，但仍将使用API模式';
-      setTimeout(() => {
-        error.value = '';
-      }, 5000);
-      return;
-    }
-    
-    console.error('API连接失败，将使用本地模拟数据:', e);
-    useLocalMock.value = !forceApiMode.value;
-    
-    // 显示临时错误通知
-    error.value = 'API连接失败，将使用本地模拟数据';
+    console.error('API连接失败:', e);
+    error.value = 'API连接失败，请检查服务器状态';
     setTimeout(() => {
       error.value = '';
     }, 5000);
   }
-};
-
-// 本地模拟生成HTML
-const mockGenerateHtml = (prompt: string, style: string): string => {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <title>生成的网页 - ${prompt}</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: "微软雅黑", sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f5f5f5;
-      color: #333;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    h1 {
-      color: ${style === 'tech' ? '#0066ff' : 
-              style === 'creative' ? '#ff6b6b' : 
-              style === 'corporate' ? '#2c3e50' : 
-              style === 'minimal' ? '#333' : '#2563eb'};
-      text-align: center;
-      margin-top: 1rem;
-    }
-    p {
-      line-height: 1.6;
-    }
-    .header {
-      text-align: center;
-      padding: 1rem;
-      ${style === 'corporate' ? 'background-color: #2c3e50; color: white;' : ''}
-    }
-    .footer {
-      text-align: center;
-      margin-top: 2rem;
-      padding-top: 1rem;
-      border-top: 1px solid #eee;
-      color: #888;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>${prompt}</h1>
-    </div>
-    <div class="content">
-      <p>这是本地模拟生成的网页示例。</p>
-      <p>您选择了"${styles.find(s => s.value === style)?.label || style}"风格。</p>
-      <p>在您的实际需求中，这里将展示更多相关内容。</p>
-    </div>
-    <div class="footer">
-      <p>由Airob本地模拟生成 &copy; ${new Date().getFullYear()}</p>
-    </div>
-  </div>
-</body>
-</html>`;
 };
 
 const generateCode = async (prompt: string) => {
@@ -208,55 +98,23 @@ const generateCode = async (prompt: string) => {
   error.value = '';
   
   try {
-    // 如果使用API模式或强制API模式
-    if (!useLocalMock.value || forceApiMode.value) {
-      // 如果API可用，正常请求
-      const response = await fetch(`${apiBaseUrl}/generator/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          description: prompt,
-          style: style.value
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API错误: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      code.value = data.html;
-      
-      // 保存到本地历史记录
-      saveToHistory(prompt, code.value);
-      
-      return;
-    }
-    
-    // 如果使用本地模拟数据
-    // 模拟API延迟
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // 生成模拟HTML
-    code.value = mockGenerateHtml(prompt, style.value);
+    // 使用API服务
+    const html = await generateHtml(prompt, style.value);
+    code.value = html;
     
     // 保存到本地历史记录
     saveToHistory(prompt, code.value);
-  } catch (e: unknown) {
+  } catch (e: any) {
     console.error('生成失败:', e);
-    error.value = e instanceof Error ? `生成失败: ${e.message}` : '生成失败：未知错误';
     
-    // 如果API请求失败但强制API模式，显示错误
-    if (forceApiMode.value) {
-      error.value += '。API模式下请求失败，请检查API连接。';
-    } 
-    // 如果API请求失败但之前未开启模拟模式且非强制API模式，切换到模拟模式
-    else if (!useLocalMock.value && !forceApiMode.value) {
-      useLocalMock.value = true;
-      error.value += '。已切换到本地模拟模式，请重试。';
+    // 显示错误消息
+    if (e.status) {
+      error.value = `生成失败: API错误 ${e.status}`;
+    } else {
+      error.value = `生成失败: ${e.message}`;
     }
+    
+    error.value += '。请检查API连接和服务器状态。';
   } finally {
     isGenerating.value = false;
   }
@@ -275,66 +133,23 @@ const refineCode = async (prompt: string) => {
   error.value = '';
   
   try {
-    // 如果使用API模式或强制API模式
-    if (!useLocalMock.value || forceApiMode.value) {
-      // 如果API可用，正常请求
-      const response = await fetch(`${apiBaseUrl}/generator/refine`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          originalHtml: code.value,
-          instructions: prompt
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API错误: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      code.value = data.html;
-      
-      // 保存到本地历史记录
-      saveToHistory(prompt, code.value, true);
-      
-      return;
-    }
-    
-    // 如果使用本地模拟数据
-    // 模拟API延迟
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // 简单的模拟优化，在HTML中添加用户请求的内容
-    const currentHtml = code.value;
-    const bodyEndPos = currentHtml.lastIndexOf('</body>');
-    
-    if (bodyEndPos !== -1) {
-      const newHtml = currentHtml.substring(0, bodyEndPos) + 
-        `\n  <!-- 根据"${prompt}"进行了优化 -->\n  ` +
-        `<div class="refinement-note" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">` +
-        `<p><strong>优化内容：</strong> ${prompt}</p></div>\n` +
-        currentHtml.substring(bodyEndPos);
-      
-      code.value = newHtml;
-    }
+    // 使用API服务
+    const html = await refineHtml(code.value, prompt);
+    code.value = html;
     
     // 保存到本地历史记录
     saveToHistory(prompt, code.value, true);
-  } catch (e: unknown) {
+  } catch (e: any) {
     console.error('优化失败:', e);
-    error.value = e instanceof Error ? `优化失败: ${e.message}` : '优化失败：未知错误';
     
-    // 如果API请求失败但强制API模式，显示错误
-    if (forceApiMode.value) {
-      error.value += '。API模式下请求失败，请检查API连接。';
-    } 
-    // 如果API请求失败但之前未开启模拟模式且非强制API模式，切换到模拟模式
-    else if (!useLocalMock.value && !forceApiMode.value) {
-      useLocalMock.value = true;
-      error.value += '。已切换到本地模拟模式，请重试。';
+    // 显示错误消息
+    if (e.status) {
+      error.value = `优化失败: API错误 ${e.status}`;
+    } else {
+      error.value = `优化失败: ${e.message}`;
     }
+    
+    error.value += '。请检查API连接和服务器状态。';
   } finally {
     isGenerating.value = false;
   }
@@ -403,7 +218,8 @@ const handleCustomPrompt = () => {
     <header class="app-header">
       <div class="header-left">
         <div class="logo" @click="currentView = 'home'">
-          <span class="logo-text">Airob</span>
+          <img src="/airob-logo.svg" alt="Airob Logo" class="logo-img">
+          <span class="logo-text">Airob.cc</span>
         </div>
       </div>
       <div class="header-center">
@@ -411,16 +227,9 @@ const handleCustomPrompt = () => {
           <div class="tab active">Code</div>
           <div class="tab">Preview</div>
         </div>
-        <div v-else class="tagline">AI网页生成工具</div>
+        <div v-else class="tagline">Code Copilot - AI网页生成工具</div>
       </div>
       <div class="header-right">
-        <div class="mode-switch">
-          <label class="switch">
-            <input type="checkbox" v-model="forceApiMode" @change="toggleMode">
-            <span class="slider"></span>
-          </label>
-          <span class="mode-label">{{ currentMode === 'api' ? 'API模式' : '本地模式' }}</span>
-        </div>
         <div class="language-selector">中文</div>
         <div v-if="currentView === 'workbench'" class="style-selector">
           <select v-model="style" class="style-dropdown">
@@ -429,10 +238,7 @@ const handleCustomPrompt = () => {
             </option>
           </select>
         </div>
-        <div v-if="useLocalMock && !forceApiMode" class="mode-badge">
-          本地模式
-        </div>
-        <div v-if="forceApiMode" class="api-mode-badge">
+        <div class="api-mode-badge">
           API模式
         </div>
       </div>
@@ -520,6 +326,12 @@ body {
   display: flex;
   align-items: center;
   cursor: pointer;
+  gap: 0.5rem;
+}
+
+.logo-img {
+  width: 32px;
+  height: 32px;
 }
 
 .logo-text {
@@ -536,77 +348,12 @@ body {
   font-size: 0.9rem;
 }
 
-.mode-badge {
-  font-size: 0.7rem;
-  padding: 0.2rem 0.5rem;
-  background-color: rgba(255, 107, 107, 0.15);
-  border-radius: 4px;
-  color: #ff6b6b;
-}
-
 .api-mode-badge {
   font-size: 0.7rem;
   padding: 0.2rem 0.5rem;
   background-color: rgba(79, 142, 255, 0.15);
   border-radius: 4px;
   color: #4f8eff;
-}
-
-.mode-switch {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.mode-label {
-  font-size: 0.75rem;
-  color: #8b8b9e;
-}
-
-/* 切换开关样式 */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #2d3748;
-  transition: .4s;
-  border-radius: 20px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 2px;
-  bottom: 2px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked + .slider {
-  background-color: #4f8eff;
-}
-
-input:checked + .slider:before {
-  transform: translateX(16px);
 }
 
 .language-selector {
@@ -690,14 +437,6 @@ input:checked + .slider:before {
   }
   
   .language-selector {
-    display: none;
-  }
-  
-  .mode-switch {
-    margin-right: 0.5rem;
-  }
-  
-  .mode-label {
     display: none;
   }
 }

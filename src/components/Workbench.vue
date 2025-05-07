@@ -15,7 +15,7 @@ const emit = defineEmits<{
 }>();
 
 // 使用inject获取currentMode
-const currentMode = inject('currentMode', ref('local'));
+const currentMode = inject('currentMode', 'api');
 
 const localCode = ref(props.code);
 const userPrompt = ref('');
@@ -75,100 +75,102 @@ const codeStats = computed(() => {
   <div class="workbench">
     <div class="workbench-content">
       <!-- 代码编辑器区域 -->
-      <div class="editor-panel">
-        <div class="editor-header">
-          <div class="tabs">
+      <div class="editor-section">
+        <div class="editor-panel">
+          <div class="editor-header">
+            <div class="tabs">
+              <button 
+                class="tab-button" 
+                :class="{ active: activeTab === 'html' }"
+                @click="activeTab = 'html'"
+              >
+                index.html
+              </button>
+            </div>
+            <div class="editor-actions">
+              <button class="action-button" title="下载HTML" @click="$emit('download')">
+                <span>下载</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="editor-body">
+            <CodeEditor 
+              v-model="localCode" 
+              language="html"
+            />
+          </div>
+          
+          <div class="editor-footer">
+            <div class="code-stats">
+              <span>{{ codeStats.lines }} 行</span>
+              <span>{{ codeStats.chars }} 字符</span>
+              <span>HTML: {{ codeStats.htmlCount }} 标签</span>
+            </div>
+            <div class="mode-indicator">
+              <span class="api-mode">API</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 代码区下方的输入框 -->
+        <div class="editor-prompt-panel">
+          <div v-if="props.isGenerating" class="generating-indicator">
+            <div class="spinner"></div>
+            <span>AI 正在生成代码...</span>
+          </div>
+          
+          <div class="prompt-container">
+            <input 
+              type="text" 
+              v-model="userPrompt"
+              placeholder="描述您想要的网页，或输入修改建议..." 
+              class="prompt-input"
+              @keyup.enter="generateCode"
+              :disabled="props.isGenerating"
+            />
+            
             <button 
-              class="tab-button" 
-              :class="{ active: activeTab === 'html' }"
-              @click="activeTab = 'html'"
+              class="action-btn refine-btn" 
+              @click="refineCode" 
+              :disabled="props.isGenerating || !localCode.trim() || !userPrompt.trim()"
             >
-              index.html
+              <span v-if="props.isGenerating">处理中...</span>
+              <span v-else>优化</span>
             </button>
-          </div>
-          <div class="editor-actions">
-            <button class="action-button" title="下载HTML" @click="$emit('download')">
-              <span>下载</span>
+            
+            <button 
+              class="action-btn generate-btn" 
+              @click="generateCode" 
+              :disabled="props.isGenerating || !userPrompt.trim()"
+            >
+              <span v-if="props.isGenerating">生成中...</span>
+              <span v-else>生成</span>
             </button>
-          </div>
-        </div>
-        
-        <div class="editor-body">
-          <CodeEditor 
-            v-model="localCode" 
-            language="html"
-          />
-        </div>
-        
-        <div class="editor-footer">
-          <div class="code-stats">
-            <span>{{ codeStats.lines }} 行</span>
-            <span>{{ codeStats.chars }} 字符</span>
-            <span>HTML: {{ codeStats.htmlCount }} 标签</span>
-          </div>
-          <div class="mode-indicator">
-            <span :class="currentMode === 'api' ? 'api-mode' : 'local-mode'">
-              {{ currentMode === 'api' ? 'API' : '本地' }}
-            </span>
           </div>
         </div>
       </div>
       
       <!-- 预览区域 -->
       <div class="preview-panel">
+        <div class="preview-header">
+          <div class="device-toggle">
+            <label class="toggle-label">
+              <input 
+                type="checkbox" 
+                v-model="showDeviceFrame"
+                class="toggle-input" 
+              />
+              <span class="toggle-text">设备框架</span>
+            </label>
+          </div>
+        </div>
+        
         <LivePreview 
           :html="localCode" 
           :showDeviceFrame="showDeviceFrame"
           v-model:deviceType="deviceType"
         />
-      </div>
-    </div>
-    
-    <!-- 底部提示输入区 -->
-    <div class="prompt-panel">
-      <div v-if="props.isGenerating" class="generating-indicator">
-        <div class="spinner"></div>
-        <span>AI 正在生成代码...</span>
-      </div>
-      
-      <div class="device-toggle">
-        <label class="toggle-label">
-          <input 
-            type="checkbox" 
-            v-model="showDeviceFrame"
-            class="toggle-input" 
-          />
-          <span class="toggle-text">设备框架</span>
-        </label>
-      </div>
-      
-      <div class="prompt-container">
-        <input 
-          type="text" 
-          v-model="userPrompt"
-          placeholder="描述您想要的网页，或输入修改建议..." 
-          class="prompt-input"
-          @keyup.enter="generateCode"
-          :disabled="props.isGenerating"
-        />
-        
-        <button 
-          class="action-btn refine-btn" 
-          @click="refineCode" 
-          :disabled="props.isGenerating || !localCode.trim() || !userPrompt.trim()"
-        >
-          <span v-if="props.isGenerating">处理中...</span>
-          <span v-else>优化</span>
-        </button>
-        
-        <button 
-          class="action-btn generate-btn" 
-          @click="generateCode" 
-          :disabled="props.isGenerating || !userPrompt.trim()"
-        >
-          <span v-if="props.isGenerating">生成中...</span>
-          <span v-else>生成</span>
-        </button>
       </div>
     </div>
   </div>
@@ -188,12 +190,29 @@ const codeStats = computed(() => {
   overflow: hidden;
 }
 
+.editor-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
 .editor-panel, .preview-panel {
   flex: 1;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.editor-panel {
   border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.preview-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: #171923;
 }
 
 .editor-header {
@@ -277,17 +296,10 @@ const codeStats = computed(() => {
   border-radius: 3px;
 }
 
-.local-mode {
-  color: #ff6b6b;
-  padding: 0.1rem 0.3rem;
-  background-color: rgba(255, 107, 107, 0.15);
-  border-radius: 3px;
-}
-
-.prompt-panel {
+.editor-prompt-panel {
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   padding: 1rem;
-  background-color: #0d0f18;
+  background-color: #171923;
   position: relative;
 }
 
@@ -320,10 +332,8 @@ const codeStats = computed(() => {
 }
 
 .device-toggle {
-  position: absolute;
-  top: -30px;
-  right: 1rem;
-  z-index: 10;
+  display: flex;
+  align-items: center;
 }
 
 .toggle-label {
@@ -398,18 +408,18 @@ const codeStats = computed(() => {
     flex-direction: column;
   }
   
-  .editor-panel, .preview-panel {
+  .editor-section, .preview-panel {
     width: 100%;
     height: 50%;
   }
 }
 
 @media (min-width: 769px) {
-  .editor-panel, .preview-panel {
-    height: calc(100vh - 120px);
+  .editor-panel {
+    height: calc(100vh - 180px);
   }
   
-  .prompt-panel {
+  .editor-prompt-panel {
     height: 60px;
   }
 }

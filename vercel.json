@@ -7,10 +7,17 @@
       "config": {
         "distDir": "dist"
       }
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
     }
   ],
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://airob-backend.vercel.app/api/:path*" }
+    { "source": "/api/v1/status", "destination": "/api/v1/status.js" },
+    { "source": "/api/v1/generator/generate", "destination": "/api/v1/generator/generate.js" },
+    { "source": "/api/v1/generator/refine", "destination": "/api/v1/generator/refine.js" },
+    { "source": "/(.*)", "destination": "/dist/$1" }
   ],
   "headers": [
     {
@@ -23,6 +30,11 @@
       ]
     }
   ],
+  "env": {
+    "DEEPSEEK_API_KEY": "sk-2b5d6bf0fe8a44a3834ae12e3951258a",
+    "DEEPSEEK_MODEL": "deepseek-chat",
+    "DEEPSEEK_API_BASE_URL": "https://api.deepseek.com"
+  },
   "trailingSlash": false,
   "cleanUrls": true
 } 
