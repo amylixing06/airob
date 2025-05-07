@@ -108,15 +108,15 @@ const changeDevice = (type: 'desktop' | 'tablet' | 'mobile') => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #1a1a27;
+  background-color: #0d0f18;
 }
 
 .device-controls {
   display: flex;
   justify-content: center;
   padding: 0.5rem;
-  border-bottom: 1px solid #2a2a3c;
-  background-color: #0f0f19;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: #171923;
 }
 
 .device-button {
@@ -125,7 +125,7 @@ const changeDevice = (type: 'desktop' | 'tablet' | 'mobile') => {
   align-items: center;
   background: transparent;
   border: none;
-  color: #777;
+  color: #8b8b9e;
   padding: 0.5rem 1rem;
   cursor: pointer;
   transition: all 0.2s;
@@ -133,7 +133,7 @@ const changeDevice = (type: 'desktop' | 'tablet' | 'mobile') => {
 }
 
 .device-button.active {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
@@ -151,7 +151,7 @@ const changeDevice = (type: 'desktop' | 'tablet' | 'mobile') => {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #121220;
+  background-color: #0a0c14;
   position: relative;
   overflow: auto;
   padding: 1rem;
@@ -214,7 +214,7 @@ const changeDevice = (type: 'desktop' | 'tablet' | 'mobile') => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #aaa;
+  color: #8b8b9e;
   z-index: 10;
 }
 
@@ -222,7 +222,7 @@ const changeDevice = (type: 'desktop' | 'tablet' | 'mobile') => {
   width: 40px;
   height: 40px;
   border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #0066ff;
+  border-top-color: #4f8eff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -238,7 +238,7 @@ const changeDevice = (type: 'desktop' | 'tablet' | 'mobile') => {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f5f5f5;
+  background-color: #f8fafc;
   color: #000;
 }
 

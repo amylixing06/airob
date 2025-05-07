@@ -52,12 +52,12 @@ const isHovered = ref(false);
 
 <style scoped>
 .template-card {
-  background-color: #1a1a27;
+  background-color: #171923;
   border-radius: 8px;
   overflow: hidden;
   transition: all 0.3s ease;
   cursor: pointer;
-  border: 1px solid #2a2a3c;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .template-card:hover {
@@ -103,7 +103,7 @@ const isHovered = ref(false);
 
 .template-description {
   font-size: 0.9rem;
-  color: #aaa;
+  color: #8b8b9e;
   margin-bottom: 0.8rem;
   line-height: 1.4;
   height: 40px;
@@ -119,8 +119,8 @@ const isHovered = ref(false);
 .template-tag {
   font-size: 0.7rem;
   padding: 0.2rem 0.5rem;
-  background-color: #2a2a3c;
+  background-color: #1e2235;
   border-radius: 3px;
-  color: #aaa;
+  color: #8b8b9e;
 }
 </style> 

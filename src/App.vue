@@ -355,21 +355,29 @@ const handleCustomPrompt = () => {
   <div class="app-container">
     <!-- 导航栏 -->
     <header class="app-header">
-      <div class="logo" @click="currentView = 'home'">Airob</div>
-      <div class="header-center">
-        <div class="tagline">AI网页生成工具</div>
-        <div class="mode-indicator" v-if="useLocalMock">
-          [本地模拟模式]
+      <div class="header-left">
+        <div class="logo" @click="currentView = 'home'">
+          <span class="logo-text">Airob</span>
         </div>
       </div>
+      <div class="header-center">
+        <div v-if="currentView === 'workbench'" class="navigation-tabs">
+          <div class="tab active">Code</div>
+          <div class="tab">Preview</div>
+        </div>
+        <div v-else class="tagline">AI网页生成工具</div>
+      </div>
       <div class="header-right">
-        <div class="style-selector" v-if="currentView === 'workbench'">
-          <span class="style-label">风格:</span>
+        <div class="language-selector">中文</div>
+        <div v-if="currentView === 'workbench'" class="style-selector">
           <select v-model="style" class="style-dropdown">
             <option v-for="option in styles" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
+        </div>
+        <div v-if="useLocalMock" class="mode-badge">
+          本地模式
         </div>
       </div>
     </header>
@@ -411,7 +419,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: #0f0f19;
+  background-color: #0d0f18;
   color: #fff;
   overflow: hidden;
 }
@@ -425,67 +433,101 @@ body {
   overflow: hidden;
 }
 
-/* 头部导航栏 */
+/* 头部导航栏 - DeepSite风格 */
 .app-header {
   display: flex;
   align-items: center;
-  padding: 0.8rem 1.5rem;
-  border-bottom: 1px solid #2a2a3c;
-  background-color: #0f0f19;
+  padding: 0.8rem 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #0d0f18;
+  height: 60px;
 }
 
-.logo {
-  font-weight: bold;
-  font-size: 1.5rem;
-  color: #fff;
-  margin-right: 1rem;
-  cursor: pointer;
+.header-left, .header-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  justify-content: flex-end;
+  gap: 1rem;
 }
 
 .header-center {
   display: flex;
   align-items: center;
-  flex: 1;
+  justify-content: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.logo-text {
+  font-weight: 600;
+  font-size: 1.5rem;
+  background: linear-gradient(to right, #4f8eff, #41b3ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .tagline {
-  color: #888;
+  color: #8b8b9e;
   font-size: 0.9rem;
 }
 
-.mode-indicator {
-  color: #ff6b6b;
-  font-size: 0.8rem;
+.mode-badge {
+  font-size: 0.7rem;
   padding: 0.2rem 0.5rem;
-  background-color: rgba(255, 107, 107, 0.1);
+  background-color: rgba(255, 107, 107, 0.15);
   border-radius: 4px;
-  margin-left: 1rem;
+  color: #ff6b6b;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
+.language-selector {
+  font-size: 0.85rem;
+  color: #8b8b9e;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .style-selector {
-  display: flex;
-  align-items: center;
-}
-
-.style-label {
-  margin-right: 0.5rem;
-  color: #888;
-  font-size: 0.9rem;
+  margin-left: 0.5rem;
 }
 
 .style-dropdown {
   padding: 0.3rem 0.6rem;
   border-radius: 4px;
-  background-color: #1a1a27;
+  background-color: #171923;
   color: #fff;
-  border: 1px solid #2a2a3c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   outline: none;
+  font-size: 0.85rem;
+}
+
+/* 导航标签 - DeepSite风格 */
+.navigation-tabs {
+  display: flex;
+  gap: 1rem;
+}
+
+.tab {
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
   font-size: 0.9rem;
+  color: #8b8b9e;
+}
+
+.tab.active {
+  background-color: #1a1e2e;
+  color: #fff;
 }
 
 /* 主内容区 */
@@ -515,21 +557,19 @@ body {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .app-header {
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 0.6rem;
   }
   
-  .header-center, .header-right {
-    margin-top: 0.5rem;
-    width: 100%;
+  .header-center {
+    display: none;
   }
   
-  .style-selector {
-    width: 100%;
+  .header-right {
+    justify-content: flex-end;
   }
   
-  .style-dropdown {
-    flex: 1;
+  .language-selector {
+    display: none;
   }
 }
 </style>

@@ -150,19 +150,19 @@ h1 {
   font-size: 3rem;
   font-weight: bold;
   margin-bottom: 1rem;
-  background: linear-gradient(to right, #fff, #a78bfa);
+  background: linear-gradient(to right, #4f8eff, #41b3ff);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .accent {
-  color: #0066ff;
+  color: #4f8eff;
 }
 
 .subtitle {
   font-size: 1.2rem;
-  color: #aaa;
+  color: #8b8b9e;
   margin-bottom: 2rem;
 }
 
@@ -176,16 +176,16 @@ h1 {
   flex: 1;
   padding: 1rem;
   font-size: 1rem;
-  border: 1px solid #2a2a3c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px 0 0 8px;
-  background-color: #1a1a27;
+  background-color: #171923;
   color: #fff;
   outline: none;
 }
 
 .create-button {
   padding: 1rem 2rem;
-  background-color: #0066ff;
+  background-color: #4f8eff;
   color: white;
   border: none;
   border-radius: 0 8px 8px 0;
@@ -195,7 +195,7 @@ h1 {
 }
 
 .create-button:hover {
-  background-color: #0055cc;
+  background-color: #3b7dff;
 }
 
 .section-title {
@@ -226,10 +226,10 @@ h1 {
 }
 
 .feature-card {
-  background-color: #1a1a27;
+  background-color: #171923;
   border-radius: 8px;
   padding: 1.5rem;
-  border: 1px solid #2a2a3c;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   transition: transform 0.3s, box-shadow 0.3s;
 }
 
@@ -251,7 +251,7 @@ h1 {
 
 .feature-card p {
   font-size: 0.9rem;
-  color: #aaa;
+  color: #8b8b9e;
   line-height: 1.5;
 }
 

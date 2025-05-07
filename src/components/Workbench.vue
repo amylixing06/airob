@@ -70,48 +70,53 @@ const codeStats = computed(() => {
 
 <template>
   <div class="workbench">
-    <div class="editor-panel">
-      <div class="editor-header">
-        <div class="tabs">
-          <button 
-            class="tab-button" 
-            :class="{ active: activeTab === 'html' }"
-            @click="activeTab = 'html'"
-          >
-            index.html
-          </button>
+    <div class="workbench-content">
+      <!-- 代码编辑器区域 -->
+      <div class="editor-panel">
+        <div class="editor-header">
+          <div class="tabs">
+            <button 
+              class="tab-button" 
+              :class="{ active: activeTab === 'html' }"
+              @click="activeTab = 'html'"
+            >
+              index.html
+            </button>
+          </div>
+          <div class="editor-actions">
+            <button class="action-button" title="下载HTML" @click="$emit('download')">
+              <span>下载</span>
+            </button>
+          </div>
         </div>
-        <div class="editor-actions">
-          <button class="action-button" title="下载HTML" @click="$emit('download')">
-            <span>下载</span>
-          </button>
+        
+        <div class="editor-body">
+          <CodeEditor 
+            v-model="localCode" 
+            language="html"
+          />
+        </div>
+        
+        <div class="editor-footer">
+          <div class="code-stats">
+            <span>{{ codeStats.lines }} 行</span>
+            <span>{{ codeStats.chars }} 字符</span>
+            <span>HTML: {{ codeStats.htmlCount }} 标签</span>
+          </div>
         </div>
       </div>
       
-      <div class="editor-body">
-        <CodeEditor 
-          v-model="localCode" 
-          language="html"
+      <!-- 预览区域 -->
+      <div class="preview-panel">
+        <LivePreview 
+          :html="localCode" 
+          :showDeviceFrame="showDeviceFrame"
+          v-model:deviceType="deviceType"
         />
       </div>
-      
-      <div class="editor-footer">
-        <div class="code-stats">
-          <span>{{ codeStats.lines }} 行</span>
-          <span>{{ codeStats.chars }} 字符</span>
-          <span>HTML: {{ codeStats.htmlCount }} 标签</span>
-        </div>
-      </div>
     </div>
     
-    <div class="preview-panel">
-      <LivePreview 
-        :html="localCode" 
-        :showDeviceFrame="showDeviceFrame"
-        v-model:deviceType="deviceType"
-      />
-    </div>
-    
+    <!-- 底部提示输入区 -->
     <div class="prompt-panel">
       <div v-if="props.isGenerating" class="generating-indicator">
         <div class="spinner"></div>
@@ -165,8 +170,14 @@ const codeStats = computed(() => {
 .workbench {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background-color: #0f0f19;
+  height: 100%;
+  background-color: #0d0f18;
+}
+
+.workbench-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 .editor-panel, .preview-panel {
@@ -174,6 +185,7 @@ const codeStats = computed(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .editor-header {
@@ -182,8 +194,8 @@ const codeStats = computed(() => {
   align-items: center;
   padding: 0 1rem;
   height: 40px;
-  background-color: #1a1a27;
-  border-bottom: 1px solid #2a2a3c;
+  background-color: #171923;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .tabs {
@@ -194,14 +206,15 @@ const codeStats = computed(() => {
   padding: 0.5rem 1rem;
   background: transparent;
   border: none;
-  color: #aaa;
+  color: #8b8b9e;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  font-size: 0.85rem;
 }
 
 .tab-button.active {
   color: #fff;
-  border-bottom-color: #0066ff;
+  border-bottom-color: #4f8eff;
 }
 
 .editor-actions {
@@ -211,18 +224,17 @@ const codeStats = computed(() => {
 
 .action-button {
   padding: 0.25rem 0.5rem;
-  background-color: transparent;
-  border: 1px solid #2a2a3c;
+  background-color: #1e2235;
+  border: none;
   border-radius: 4px;
-  color: #888;
+  color: #fff;
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .action-button:hover {
-  background-color: #2a2a3c;
-  color: #fff;
+  background-color: #2c3146;
 }
 
 .editor-body {
@@ -232,10 +244,10 @@ const codeStats = computed(() => {
 
 .editor-footer {
   padding: 0.5rem 1rem;
-  border-top: 1px solid #2a2a3c;
-  background-color: #1a1a27;
-  font-size: 0.8rem;
-  color: #888;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: #171923;
+  font-size: 0.75rem;
+  color: #8b8b9e;
 }
 
 .code-stats {
@@ -244,9 +256,9 @@ const codeStats = computed(() => {
 }
 
 .prompt-panel {
-  border-top: 1px solid #2a2a3c;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   padding: 1rem;
-  background-color: #0f0f19;
+  background-color: #0d0f18;
   position: relative;
 }
 
@@ -255,7 +267,7 @@ const codeStats = computed(() => {
   top: -40px;
   left: 50%;
   transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(10, 10, 20, 0.9);
   color: #fff;
   padding: 0.5rem 1rem;
   border-radius: 4px;
@@ -269,7 +281,7 @@ const codeStats = computed(() => {
   width: 20px;
   height: 20px;
   border: 2px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #0066ff;
+  border-top-color: #4f8eff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -301,7 +313,7 @@ const codeStats = computed(() => {
 
 .toggle-text {
   font-size: 0.8rem;
-  color: #888;
+  color: #8b8b9e;
   margin-left: 0.5rem;
 }
 
@@ -313,9 +325,9 @@ const codeStats = computed(() => {
 .prompt-input {
   flex: 1;
   padding: 0.7rem 1rem;
-  border: 1px solid #2a2a3c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
-  background-color: #1a1a27;
+  background-color: #171923;
   color: #fff;
   outline: none;
 }
@@ -336,37 +348,40 @@ const codeStats = computed(() => {
 }
 
 .refine-btn {
-  background-color: #444;
+  background-color: #374151;
 }
 
 .refine-btn:hover:not(:disabled) {
-  background-color: #555;
+  background-color: #4b5563;
 }
 
 .generate-btn {
-  background-color: #0066ff;
+  background-color: #4f8eff;
 }
 
 .generate-btn:hover:not(:disabled) {
-  background-color: #0055cc;
+  background-color: #3b7dff;
 }
 
 /* 响应式布局 */
-@media (min-width: 768px) {
-  .workbench {
-    flex-direction: row;
+@media (max-width: 768px) {
+  .workbench-content {
+    flex-direction: column;
   }
   
   .editor-panel, .preview-panel {
-    width: 50%;
+    width: 100%;
+    height: 50%;
+  }
+}
+
+@media (min-width: 769px) {
+  .editor-panel, .preview-panel {
+    height: calc(100vh - 120px);
   }
   
   .prompt-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-top: 1px solid #2a2a3c;
+    height: 60px;
   }
 }
 </style> 
