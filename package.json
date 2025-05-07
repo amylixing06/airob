@@ -1,29 +1,29 @@
 {
-  "name": "airob",
-  "private": true,
+  "name": "airob-frontend",
   "version": "0.0.1",
-  "type": "module",
+  "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.4.15",
-    "vue-router": "^4.2.5",
-    "pinia": "^2.1.7",
-    "axios": "^1.6.7",
     "@headlessui/vue": "^1.7.19",
     "@heroicons/vue": "^2.1.1",
+    "axios": "^1.6.7",
+    "pinia": "^2.1.7",
     "tailwindcss": "^3.4.1",
-    "postcss": "^8.4.35",
-    "autoprefixer": "^10.4.17"
+    "vue": "^3.4.15",
+    "vue-router": "^4.2.5"
   },
   "devDependencies": {
-    "@types/node": "^20.11.16",
     "@vitejs/plugin-vue": "^5.0.3",
+    "@vue/tsconfig": "^0.7.0",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
     "typescript": "^5.3.3",
-    "vite": "^5.0.12",
+    "vercel": "^41.7.2",
+    "vite": "^5.1.0",
     "vue-tsc": "^1.8.27"
   }
-} 
+}

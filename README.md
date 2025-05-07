@@ -1,79 +1,95 @@
-# AIROB - AI驱动的落地页生成器
+# Vue 3 + TypeScript + Vite
 
-基于DeepSeek大模型的智能落地页生成工具，帮助用户快速创建专业的响应式落地页面。
+This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
 
-## 功能特点
+Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
 
-- 🎨 多种页面风格和配色方案
-- 📱 响应式设计，适配各种设备
-- 🚀 快速生成，即时预览
-- 💾 支持代码下载和二次编辑
-- 🎯 针对不同行业的优化模板
+# Airob - AI落地页生成器
 
-## 技术栈
+基于DeepSeek大模型的AI落地页生成器，能够根据用户输入的行业、风格等要求，快速生成专业的落地页。
 
-- 前端：Vue 3 + TypeScript + TailwindCSS
-- 后端：FastAPI (Python)
-- AI：DeepSeek API
-- 构建工具：Vite
+## 部署指南
 
-## 开发环境设置
+本项目采用前后端分离架构，分别部署在Vercel上。
 
-1. 克隆项目
+### 前端部署
+
+1. 确保你有一个Vercel账号，访问[vercel.com](https://vercel.com)注册或登录
+
+2. 在本地构建前端项目：
+   ```bash
+   # 安装依赖
+   npm install
+   
+   # 构建项目
+   npm run build
+   ```
+
+3. 使用Vercel CLI部署（推荐）：
+   ```bash
+   # 安装Vercel CLI
+   npm i -g vercel
+   
+   # 部署
+   vercel
+   ```
+   
+   或者直接在Vercel网站上导入GitHub仓库进行部署
+
+4. 配置环境变量：
+   在Vercel项目设置中添加以下环境变量：
+   - `VITE_API_BASE_URL`: 后端API基础URL（例如：https://airob-backend.vercel.app/api/v1）
+
+### 后端部署
+
+1. 进入后端目录：
+   ```bash
+   cd backend
+   ```
+
+2. 使用Vercel CLI部署：
+   ```bash
+   vercel
+   ```
+
+3. 配置环境变量：
+   在Vercel项目设置中添加以下环境变量：
+   - `DEEPSEEK_API_KEY`: DeepSeek API密钥
+   - `SECRET_KEY`: 用于JWT的密钥
+
+### 双部署验证
+
+1. 确保前端能够成功连接后端API
+2. 测试生成页面功能
+3. 验证跨域设置是否正确
+
+## 开发指南
+
+### 前端开发
+
 ```bash
-git clone https://github.com/yourusername/airob.git
-cd airob
-```
-
-2. 安装依赖
-```bash
+# 安装依赖
 npm install
-```
 
-3. 配置环境变量
-```bash
-cp .env.example .env
-# 编辑.env文件，添加必要的环境变量
-```
-
-4. 启动开发服务器
-```bash
+# 本地开发
 npm run dev
 ```
 
-## 项目结构
+### 后端开发
 
-```
-airob/
-├── src/
-│   ├── api/          # API服务
-│   ├── assets/       # 静态资源
-│   ├── components/   # Vue组件
-│   ├── stores/       # Pinia状态管理
-│   ├── utils/        # 工具函数
-│   └── views/        # 页面视图
-├── public/           # 公共资源
-└── package.json      # 项目配置
+```bash
+# 进入后端目录
+cd backend
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 本地运行
+python run.py
 ```
 
-## 使用说明
+## 故障排除
 
-1. 访问首页，点击"开始生成"
-2. 选择行业类型和页面风格
-3. 输入主要功能/特点
-4. 选择配色方案
-5. 点击生成按钮
-6. 预览生成的页面
-7. 可以编辑或下载生成的代码
-
-## 贡献指南
-
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建Pull Request
-
-## 许可证
-
-MIT License - 详见 [LICENSE](LICENSE) 文件 
+1. 如果遇到跨域问题，检查后端CORS设置和前端API调用
+2. 如果Vercel构建失败，检查package.json中的构建命令和依赖
+3. 如果API调用失败，检查环境变量配置是否正确

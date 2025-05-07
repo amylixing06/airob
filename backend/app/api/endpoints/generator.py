@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from ...services.deepseek import deepseek_service
+from ...services.prompt_builder import build_prompt
 from ...core.security import create_access_token
 from datetime import timedelta
 from ...core.config import settings
@@ -11,23 +12,12 @@ router = APIRouter()
 async def generate_page(request: Dict[str, Any]) -> Dict[str, Any]:
     """生成落地页"""
     try:
-        # 构建提示词
-        prompt = f"""
-        行业: {request.get('industry', 'tech')}
-        风格: {request.get('style', 'modern')}
-        主要功能: {request.get('features', '')}
-        配色方案: {request.get('colorScheme', 'blue')}
-        """
-        
-        # 调用DeepSeek API
+        prompt = build_prompt(request)
         response = await deepseek_service.generate_page(
             prompt=prompt,
             style=request.get('style', 'modern')
         )
-        
-        # 提取生成的HTML内容
         generated_html = response['choices'][0]['message']['content']
-        
         return {
             "html": generated_html,
             "css": "",  # 可以从HTML中提取
@@ -44,9 +34,7 @@ async def refine_page(request: Dict[str, Any]) -> Dict[str, Any]:
             original_html=request['originalHtml'],
             instructions=request['instructions']
         )
-        
         refined_html = response['choices'][0]['message']['content']
-        
         return {
             "html": refined_html,
             "css": "",  # 可以从HTML中提取
