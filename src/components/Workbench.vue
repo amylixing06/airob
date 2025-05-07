@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, inject } from 'vue';
 import CodeEditor from './CodeEditor.vue';
 import LivePreview from './LivePreview.vue';
 
@@ -13,6 +13,9 @@ const emit = defineEmits<{
   (e: 'generate', prompt: string): void;
   (e: 'refine', prompt: string): void;
 }>();
+
+// 使用inject获取currentMode
+const currentMode = inject('currentMode', ref('local'));
 
 const localCode = ref(props.code);
 const userPrompt = ref('');
@@ -102,6 +105,11 @@ const codeStats = computed(() => {
             <span>{{ codeStats.lines }} 行</span>
             <span>{{ codeStats.chars }} 字符</span>
             <span>HTML: {{ codeStats.htmlCount }} 标签</span>
+          </div>
+          <div class="mode-indicator">
+            <span :class="currentMode === 'api' ? 'api-mode' : 'local-mode'">
+              {{ currentMode === 'api' ? 'API' : '本地' }}
+            </span>
           </div>
         </div>
       </div>
@@ -248,11 +256,32 @@ const codeStats = computed(() => {
   background-color: #171923;
   font-size: 0.75rem;
   color: #8b8b9e;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .code-stats {
   display: flex;
   gap: 1rem;
+}
+
+.mode-indicator {
+  font-size: 0.7rem;
+}
+
+.api-mode {
+  color: #4f8eff;
+  padding: 0.1rem 0.3rem;
+  background-color: rgba(79, 142, 255, 0.15);
+  border-radius: 3px;
+}
+
+.local-mode {
+  color: #ff6b6b;
+  padding: 0.1rem 0.3rem;
+  background-color: rgba(255, 107, 107, 0.15);
+  border-radius: 3px;
 }
 
 .prompt-panel {

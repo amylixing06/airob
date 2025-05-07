@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, provide } from 'vue';
 import HomePage from './components/HomePage.vue';
 import Workbench from './components/Workbench.vue';
 
@@ -14,8 +14,28 @@ const apiBaseUrl = '/api/v1';
 
 // 是否使用本地模拟数据（当API连接失败时）
 const useLocalMock = ref(false);
+// 是否强制使用API模式
+const forceApiMode = ref(false);
 // 当前视图模式：'home' | 'workbench'
 const currentView = ref<'home' | 'workbench'>('home');
+
+// 计算当前模式
+const currentMode = computed(() => {
+  if (forceApiMode.value) return 'api';
+  return useLocalMock.value ? 'local' : 'api';
+});
+
+// 提供当前模式给子组件
+provide('currentMode', currentMode);
+
+// 切换模式
+const toggleMode = () => {
+  forceApiMode.value = !forceApiMode.value;
+  if (forceApiMode.value) {
+    useLocalMock.value = false;
+    testApiConnection();
+  }
+};
 
 const code = ref(`<!DOCTYPE html>
 <html>
@@ -64,6 +84,15 @@ onMounted(async () => {
 
 // 测试API连接是否可用
 const testApiConnection = async () => {
+  if (forceApiMode.value) {
+    useLocalMock.value = false;
+    error.value = '已切换到API模式';
+    setTimeout(() => {
+      error.value = '';
+    }, 3000);
+    return;
+  }
+  
   try {
     const response = await fetch(`${apiBaseUrl}/generator/generate`, {
       method: 'HEAD',
@@ -79,8 +108,17 @@ const testApiConnection = async () => {
     useLocalMock.value = false;
     console.log('API连接成功');
   } catch (e) {
+    if (forceApiMode.value) {
+      // 如果强制API模式但连接失败
+      error.value = 'API连接失败，但仍将使用API模式';
+      setTimeout(() => {
+        error.value = '';
+      }, 5000);
+      return;
+    }
+    
     console.error('API连接失败，将使用本地模拟数据:', e);
-    useLocalMock.value = true;
+    useLocalMock.value = !forceApiMode.value;
     
     // 显示临时错误通知
     error.value = 'API连接失败，将使用本地模拟数据';
@@ -170,13 +208,26 @@ const generateCode = async (prompt: string) => {
   error.value = '';
   
   try {
-    // 如果API不可用，使用本地模拟数据
-    if (useLocalMock.value) {
-      // 模拟API延迟
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    // 如果使用API模式或强制API模式
+    if (!useLocalMock.value || forceApiMode.value) {
+      // 如果API可用，正常请求
+      const response = await fetch(`${apiBaseUrl}/generator/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          description: prompt,
+          style: style.value
+        })
+      });
       
-      // 生成模拟HTML
-      code.value = mockGenerateHtml(prompt, style.value);
+      if (!response.ok) {
+        throw new Error(`API错误: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      code.value = data.html;
       
       // 保存到本地历史记录
       saveToHistory(prompt, code.value);
@@ -184,34 +235,25 @@ const generateCode = async (prompt: string) => {
       return;
     }
     
-    // 如果API可用，正常请求
-    const response = await fetch(`${apiBaseUrl}/generator/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        description: prompt,
-        style: style.value
-      })
-    });
+    // 如果使用本地模拟数据
+    // 模拟API延迟
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    if (!response.ok) {
-      throw new Error(`API错误: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    code.value = data.html;
+    // 生成模拟HTML
+    code.value = mockGenerateHtml(prompt, style.value);
     
     // 保存到本地历史记录
     saveToHistory(prompt, code.value);
-    
   } catch (e: unknown) {
     console.error('生成失败:', e);
     error.value = e instanceof Error ? `生成失败: ${e.message}` : '生成失败：未知错误';
     
-    // 如果API请求失败但之前未开启模拟模式，切换到模拟模式
-    if (!useLocalMock.value) {
+    // 如果API请求失败但强制API模式，显示错误
+    if (forceApiMode.value) {
+      error.value += '。API模式下请求失败，请检查API连接。';
+    } 
+    // 如果API请求失败但之前未开启模拟模式且非强制API模式，切换到模拟模式
+    else if (!useLocalMock.value && !forceApiMode.value) {
       useLocalMock.value = true;
       error.value += '。已切换到本地模拟模式，请重试。';
     }
@@ -233,24 +275,26 @@ const refineCode = async (prompt: string) => {
   error.value = '';
   
   try {
-    // 如果API不可用，使用本地模拟数据
-    if (useLocalMock.value) {
-      // 模拟API延迟
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    // 如果使用API模式或强制API模式
+    if (!useLocalMock.value || forceApiMode.value) {
+      // 如果API可用，正常请求
+      const response = await fetch(`${apiBaseUrl}/generator/refine`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          originalHtml: code.value,
+          instructions: prompt
+        })
+      });
       
-      // 简单的模拟优化，在HTML中添加用户请求的内容
-      const currentHtml = code.value;
-      const bodyEndPos = currentHtml.lastIndexOf('</body>');
-      
-      if (bodyEndPos !== -1) {
-        const newHtml = currentHtml.substring(0, bodyEndPos) + 
-          `\n  <!-- 根据"${prompt}"进行了优化 -->\n  ` +
-          `<div class="refinement-note" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">` +
-          `<p><strong>优化内容：</strong> ${prompt}</p></div>\n` +
-          currentHtml.substring(bodyEndPos);
-        
-        code.value = newHtml;
+      if (!response.ok) {
+        throw new Error(`API错误: ${response.status}`);
       }
+      
+      const data = await response.json();
+      code.value = data.html;
       
       // 保存到本地历史记录
       saveToHistory(prompt, code.value, true);
@@ -258,34 +302,36 @@ const refineCode = async (prompt: string) => {
       return;
     }
     
-    // 如果API可用，正常请求
-    const response = await fetch(`${apiBaseUrl}/generator/refine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        originalHtml: code.value,
-        instructions: prompt
-      })
-    });
+    // 如果使用本地模拟数据
+    // 模拟API延迟
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    if (!response.ok) {
-      throw new Error(`API错误: ${response.status}`);
+    // 简单的模拟优化，在HTML中添加用户请求的内容
+    const currentHtml = code.value;
+    const bodyEndPos = currentHtml.lastIndexOf('</body>');
+    
+    if (bodyEndPos !== -1) {
+      const newHtml = currentHtml.substring(0, bodyEndPos) + 
+        `\n  <!-- 根据"${prompt}"进行了优化 -->\n  ` +
+        `<div class="refinement-note" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">` +
+        `<p><strong>优化内容：</strong> ${prompt}</p></div>\n` +
+        currentHtml.substring(bodyEndPos);
+      
+      code.value = newHtml;
     }
-    
-    const data = await response.json();
-    code.value = data.html;
     
     // 保存到本地历史记录
     saveToHistory(prompt, code.value, true);
-    
   } catch (e: unknown) {
     console.error('优化失败:', e);
     error.value = e instanceof Error ? `优化失败: ${e.message}` : '优化失败：未知错误';
     
-    // 如果API请求失败但之前未开启模拟模式，切换到模拟模式
-    if (!useLocalMock.value) {
+    // 如果API请求失败但强制API模式，显示错误
+    if (forceApiMode.value) {
+      error.value += '。API模式下请求失败，请检查API连接。';
+    } 
+    // 如果API请求失败但之前未开启模拟模式且非强制API模式，切换到模拟模式
+    else if (!useLocalMock.value && !forceApiMode.value) {
       useLocalMock.value = true;
       error.value += '。已切换到本地模拟模式，请重试。';
     }
@@ -368,6 +414,13 @@ const handleCustomPrompt = () => {
         <div v-else class="tagline">AI网页生成工具</div>
       </div>
       <div class="header-right">
+        <div class="mode-switch">
+          <label class="switch">
+            <input type="checkbox" v-model="forceApiMode" @change="toggleMode">
+            <span class="slider"></span>
+          </label>
+          <span class="mode-label">{{ currentMode === 'api' ? 'API模式' : '本地模式' }}</span>
+        </div>
         <div class="language-selector">中文</div>
         <div v-if="currentView === 'workbench'" class="style-selector">
           <select v-model="style" class="style-dropdown">
@@ -376,8 +429,11 @@ const handleCustomPrompt = () => {
             </option>
           </select>
         </div>
-        <div v-if="useLocalMock" class="mode-badge">
+        <div v-if="useLocalMock && !forceApiMode" class="mode-badge">
           本地模式
+        </div>
+        <div v-if="forceApiMode" class="api-mode-badge">
+          API模式
         </div>
       </div>
     </header>
@@ -488,6 +544,71 @@ body {
   color: #ff6b6b;
 }
 
+.api-mode-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  background-color: rgba(79, 142, 255, 0.15);
+  border-radius: 4px;
+  color: #4f8eff;
+}
+
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mode-label {
+  font-size: 0.75rem;
+  color: #8b8b9e;
+}
+
+/* 切换开关样式 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #2d3748;
+  transition: .4s;
+  border-radius: 20px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #4f8eff;
+}
+
+input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
 .language-selector {
   font-size: 0.85rem;
   color: #8b8b9e;
@@ -569,6 +690,14 @@ body {
   }
   
   .language-selector {
+    display: none;
+  }
+  
+  .mode-switch {
+    margin-right: 0.5rem;
+  }
+  
+  .mode-label {
     display: none;
   }
 }
