@@ -51,4 +51,54 @@ async function testDeepSeekAPI() {
   }
 }
 
-testDeepSeekAPI(); 
+testDeepSeekAPI();
+
+/**
+ * 测试DeepSeek API URL构建逻辑
+ */
+
+const DEEPSEEK_API_BASE_URL_VARIANTS = [
+  'https://api.deepseek.com',
+  'https://api.deepseek.com/',
+  'https://api.deepseek.com/v1',
+  'https://api.deepseek.com/v1/',
+  'https://api.deepseek.com/v1/chat/completions'
+];
+
+function buildCorrectUrl(baseUrl) {
+  let url;
+  if (baseUrl.endsWith('/chat/completions')) {
+    url = baseUrl;
+  } else if (baseUrl.endsWith('/v1')) {
+    url = `${baseUrl}/chat/completions`;
+  } else if (baseUrl.endsWith('/v1/')) {
+    url = `${baseUrl}chat/completions`;
+  } else {
+    // 去除所有尾部斜杠
+    const base = baseUrl.replace(/\/+$/, '');
+    // 检查是否已包含v1路径
+    if (base.endsWith('/v1') || base.includes('/v1/')) {
+      url = `${base}/chat/completions`.replace('/v1/v1/', '/v1/');
+    } else {
+      url = `${base}/v1/chat/completions`;
+    }
+  }
+
+  // 确保URL没有重复的路径段
+  url = url.replace('/v1/v1/', '/v1/');
+  
+  return url;
+}
+
+// 测试所有变体
+console.log('测试DeepSeek API URL构建逻辑:');
+console.log('============================');
+
+DEEPSEEK_API_BASE_URL_VARIANTS.forEach(baseUrl => {
+  const finalUrl = buildCorrectUrl(baseUrl);
+  console.log(`输入: ${baseUrl}`);
+  console.log(`输出: ${finalUrl}`);
+  console.log('----------------------------');
+});
+
+console.log('测试完成！'); 

@@ -37,7 +37,7 @@
   "env": {
     "DEEPSEEK_API_KEY": "sk-2b5d6bf0fe8a44a3834ae12e3951258a",
     "DEEPSEEK_MODEL": "deepseek-chat",
-    "DEEPSEEK_API_BASE_URL": "https://api.deepseek.com"
+    "DEEPSEEK_API_BASE_URL": "https://api.deepseek.com/v1"
   },
   "trailingSlash": false,
   "cleanUrls": true

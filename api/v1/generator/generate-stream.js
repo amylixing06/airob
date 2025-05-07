@@ -4,7 +4,7 @@ const { AbortController } = require('abort-controller');
 
 // DeepSeek API配置
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_API_BASE_URL = process.env.DEEPSEEK_API_BASE_URL || 'https://api.deepseek.com';
+const DEEPSEEK_API_BASE_URL = process.env.DEEPSEEK_API_BASE_URL || 'https://api.deepseek.com/v1';
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
 // API调用配置
@@ -111,7 +111,7 @@ module.exports = async (req, res) => {
 async function simulateStreamResponse(prompt, res) {
   console.log('开始模拟流式响应...');
   
-  // 构建正确的URL
+  // 构建正确的URL，避免路径重复问题
   let url;
   if (DEEPSEEK_API_BASE_URL.endsWith('/chat/completions')) {
     url = DEEPSEEK_API_BASE_URL;
@@ -120,9 +120,18 @@ async function simulateStreamResponse(prompt, res) {
   } else if (DEEPSEEK_API_BASE_URL.endsWith('/v1/')) {
     url = `${DEEPSEEK_API_BASE_URL}chat/completions`;
   } else {
+    // 去除所有尾部斜杠
     const base = DEEPSEEK_API_BASE_URL.replace(/\/+$/, '');
-    url = `${base}/v1/chat/completions`;
+    // 检查是否已包含v1路径
+    if (base.endsWith('/v1') || base.includes('/v1/')) {
+      url = `${base}/chat/completions`.replace('/v1/v1/', '/v1/');
+    } else {
+      url = `${base}/v1/chat/completions`;
+    }
   }
+
+  // 确保URL没有重复的路径段
+  url = url.replace('/v1/v1/', '/v1/');
 
   console.log('API请求到:', url);
   console.log('使用模型:', DEEPSEEK_MODEL);
