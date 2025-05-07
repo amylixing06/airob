@@ -6,8 +6,13 @@ interface ApiError {
   message: string;
 }
 
-// 版本号 - v1.0.3
-const apiBaseUrl = 'https://airob-backend.vercel.app/api/v1';
+// 版本号 - v1.0.4
+// 使用相对路径解决CORS问题
+const apiBaseUrl = '/api/v1';
+
+// 是否使用本地模拟数据（当API连接失败时）
+const useLocalMock = ref(false);
+
 const code = ref(`<!DOCTYPE html>
 <html>
 <head>
@@ -60,7 +65,105 @@ const previewSrc = computed(() => {
 onMounted(async () => {
   // 这里可以添加从localStorage或API获取最近生成记录的逻辑
   // 目前先用默认代码
+  
+  // 测试API连接
+  testApiConnection();
 });
+
+// 测试API连接是否可用
+const testApiConnection = async () => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/generator/generate`, {
+      method: 'HEAD',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API错误: ${response.status}`);
+    }
+    
+    useLocalMock.value = false;
+    console.log('API连接成功');
+  } catch (e) {
+    console.error('API连接失败，将使用本地模拟数据:', e);
+    useLocalMock.value = true;
+    
+    // 显示临时错误通知
+    error.value = 'API连接失败，将使用本地模拟数据';
+    setTimeout(() => {
+      error.value = '';
+    }, 5000);
+  }
+};
+
+// 本地模拟生成HTML
+const mockGenerateHtml = (prompt: string, style: string): string => {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>生成的网页 - ${prompt}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: "微软雅黑", sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: ${style === 'tech' ? '#0066ff' : 
+              style === 'creative' ? '#ff6b6b' : 
+              style === 'corporate' ? '#2c3e50' : 
+              style === 'minimal' ? '#333' : '#2563eb'};
+      text-align: center;
+      margin-top: 1rem;
+    }
+    p {
+      line-height: 1.6;
+    }
+    .header {
+      text-align: center;
+      padding: 1rem;
+      ${style === 'corporate' ? 'background-color: #2c3e50; color: white;' : ''}
+    }
+    .footer {
+      text-align: center;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${prompt}</h1>
+    </div>
+    <div class="content">
+      <p>这是本地模拟生成的网页示例。</p>
+      <p>您选择了"${styles.find(s => s.value === style)?.label || style}"风格。</p>
+      <p>在您的实际需求中，这里将展示更多相关内容。</p>
+    </div>
+    <div class="footer">
+      <p>由Airob本地模拟生成 &copy; ${new Date().getFullYear()}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+};
 
 const generateCode = async () => {
   if (!userInput.value.trim()) {
@@ -75,6 +178,24 @@ const generateCode = async () => {
   error.value = '';
   
   try {
+    // 如果API不可用，使用本地模拟数据
+    if (useLocalMock.value) {
+      // 模拟API延迟
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // 生成模拟HTML
+      code.value = mockGenerateHtml(userInput.value, style.value);
+      
+      // 保存到本地历史记录
+      saveToHistory(userInput.value, code.value);
+      
+      // 清空输入
+      userInput.value = '';
+      
+      return;
+    }
+    
+    // 如果API可用，正常请求
     const response = await fetch(`${apiBaseUrl}/generator/generate`, {
       method: 'POST',
       headers: {
@@ -102,6 +223,12 @@ const generateCode = async () => {
   } catch (e: unknown) {
     console.error('生成失败:', e);
     error.value = e instanceof Error ? `生成失败: ${e.message}` : '生成失败：未知错误';
+    
+    // 如果API请求失败但之前未开启模拟模式，切换到模拟模式
+    if (!useLocalMock.value) {
+      useLocalMock.value = true;
+      error.value += '。已切换到本地模拟模式，请重试。';
+    }
   } finally {
     isGenerating.value = false;
   }
@@ -120,6 +247,35 @@ const refineCode = async () => {
   error.value = '';
   
   try {
+    // 如果API不可用，使用本地模拟数据
+    if (useLocalMock.value) {
+      // 模拟API延迟
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // 简单的模拟优化，在HTML中添加用户请求的内容
+      const currentHtml = code.value;
+      const bodyEndPos = currentHtml.lastIndexOf('</body>');
+      
+      if (bodyEndPos !== -1) {
+        const newHtml = currentHtml.substring(0, bodyEndPos) + 
+          `\n  <!-- 根据"${userInput.value}"进行了优化 -->\n  ` +
+          `<div class="refinement-note" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">` +
+          `<p><strong>优化内容：</strong> ${userInput.value}</p></div>\n` +
+          currentHtml.substring(bodyEndPos);
+        
+        code.value = newHtml;
+      }
+      
+      // 保存到本地历史记录
+      saveToHistory(userInput.value, code.value, true);
+      
+      // 清空输入
+      userInput.value = '';
+      
+      return;
+    }
+    
+    // 如果API可用，正常请求
     const response = await fetch(`${apiBaseUrl}/generator/refine`, {
       method: 'POST',
       headers: {
@@ -147,6 +303,12 @@ const refineCode = async () => {
   } catch (e: unknown) {
     console.error('优化失败:', e);
     error.value = e instanceof Error ? `优化失败: ${e.message}` : '优化失败：未知错误';
+    
+    // 如果API请求失败但之前未开启模拟模式，切换到模拟模式
+    if (!useLocalMock.value) {
+      useLocalMock.value = true;
+      error.value += '。已切换到本地模拟模式，请重试。';
+    }
   } finally {
     isGenerating.value = false;
   }
@@ -197,6 +359,9 @@ const downloadHTML = () => {
     <header class="header">
       <div class="logo">Airob</div>
       <div class="tagline">AI网页生成工具</div>
+      <div class="mode-indicator" v-if="useLocalMock">
+        [本地模拟模式]
+      </div>
       <div class="style-selector">
         <span class="style-label">风格:</span>
         <select v-model="style" class="style-dropdown">
@@ -545,5 +710,14 @@ body {
     border-right: none;
     border-bottom: 1px solid #2a2a3c;
   }
+}
+
+.mode-indicator {
+  color: #ff6b6b;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  background-color: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+  margin-right: 1rem;
 }
 </style>
