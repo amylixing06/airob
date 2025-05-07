@@ -26,17 +26,37 @@ class DeepSeekService:
         """
         
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers=self.headers,
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [{"role": "user", "content": enhanced_prompt}],
-                    "temperature": 0.7
-                }
-            )
-            response.raise_for_status()
-            return response.json()
+            # 检查base_url是否已经包含了/chat/completions
+            endpoint = "/chat/completions"
+            if self.base_url.endswith("/chat/completions"):
+                url = self.base_url
+            elif "/chat/completions" in self.base_url:
+                # 如果URL中已经包含了部分路径但不完整
+                url = self.base_url.split("/chat")[0] + "/chat/completions"
+            else:
+                # 去除可能的尾部斜杠
+                base = self.base_url.rstrip('/')
+                url = f"{base}{endpoint}"
+                
+            try:
+                response = await client.post(
+                    url,
+                    headers=self.headers,
+                    json={
+                        "model": "deepseek-chat",
+                        "messages": [{"role": "user", "content": enhanced_prompt}],
+                        "temperature": 0.7
+                    },
+                    timeout=60.0  # 增加超时时间到60秒
+                )
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                # 记录错误信息
+                print(f"DeepSeek API调用失败: {str(e)}")
+                print(f"请求URL: {url}")
+                print(f"API密钥前缀: {self.api_key[:7]}...")
+                raise
 
     async def refine_page(self, original_html: str, instructions: str) -> Dict[str, Any]:
         """优化现有页面内容"""
@@ -52,16 +72,77 @@ class DeepSeekService:
         """
         
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers=self.headers,
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.5
+            # 与generate_page相同的URL构建逻辑
+            endpoint = "/chat/completions"
+            if self.base_url.endswith("/chat/completions"):
+                url = self.base_url
+            elif "/chat/completions" in self.base_url:
+                url = self.base_url.split("/chat")[0] + "/chat/completions"
+            else:
+                base = self.base_url.rstrip('/')
+                url = f"{base}{endpoint}"
+                
+            try:
+                response = await client.post(
+                    url,
+                    headers=self.headers,
+                    json={
+                        "model": "deepseek-chat",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.5
+                    },
+                    timeout=60.0  # 增加超时时间到60秒
+                )
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                # 记录错误信息
+                print(f"DeepSeek API调用失败: {str(e)}")
+                print(f"请求URL: {url}")
+                print(f"API密钥前缀: {self.api_key[:7]}...")
+                raise
+
+    async def test_connection(self) -> Dict[str, Any]:
+        """测试与DeepSeek API的连接"""
+        test_message = "你好，这是一条测试消息。请回复'连接成功'。"
+        
+        async with httpx.AsyncClient() as client:
+            endpoint = "/chat/completions"
+            if self.base_url.endswith("/chat/completions"):
+                url = self.base_url
+            elif "/chat/completions" in self.base_url:
+                url = self.base_url.split("/chat")[0] + "/chat/completions"
+            else:
+                base = self.base_url.rstrip('/')
+                url = f"{base}{endpoint}"
+                
+            try:
+                response = await client.post(
+                    url,
+                    headers=self.headers,
+                    json={
+                        "model": "deepseek-chat",
+                        "messages": [{"role": "user", "content": test_message}],
+                        "temperature": 0.5,
+                        "max_tokens": 50  # 限制回复长度，节省token
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "status": "success",
+                    "message": "API连接成功",
+                    "data": {
+                        "model": result.get("model", "未知"),
+                        "response": result.get("choices", [{}])[0].get("message", {}).get("content", "无回复")
+                    }
                 }
-            )
-            response.raise_for_status()
-            return response.json()
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"API连接失败: {str(e)}",
+                    "error_details": str(e)
+                }
 
 deepseek_service = DeepSeekService() 

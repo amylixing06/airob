@@ -133,7 +133,20 @@ async function callDeepSeekAPIWithRetry(prompt, retries = API_CONFIG.retries) {
  */
 async function callDeepSeekAPI(prompt) {
   // 确保使用正确的API端点路径
-  const url = `${DEEPSEEK_API_BASE_URL}/v1/chat/completions`;
+  let url;
+  
+  // 根据base_url构建正确的URL
+  if (DEEPSEEK_API_BASE_URL.endsWith('/chat/completions')) {
+    url = DEEPSEEK_API_BASE_URL;
+  } else if (DEEPSEEK_API_BASE_URL.endsWith('/v1')) {
+    url = `${DEEPSEEK_API_BASE_URL}/chat/completions`;
+  } else if (DEEPSEEK_API_BASE_URL.endsWith('/v1/')) {
+    url = `${DEEPSEEK_API_BASE_URL}chat/completions`;
+  } else {
+    // 去除尾部斜杠
+    const base = DEEPSEEK_API_BASE_URL.replace(/\/+$/, '');
+    url = `${base}/v1/chat/completions`;
+  }
 
   console.log('\n==== DeepSeek API请求详情 ====');
   console.log('- DeepSeek API URL:', url);

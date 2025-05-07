@@ -41,4 +41,13 @@ async def refine_page(request: Dict[str, Any]) -> Dict[str, Any]:
             "js": ""    # 可以从HTML中提取
         }
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/test-connection")
+async def test_api_connection() -> Dict[str, Any]:
+    """测试DeepSeek API连接"""
+    try:
+        result = await deepseek_service.test_connection()
+        return result
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

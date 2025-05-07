@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     
     # DeepSeek API配置
     DEEPSEEK_API_KEY: str
-    DEEPSEEK_API_BASE_URL: str = "https://api.deepseek.com/v1"
+    DEEPSEEK_API_BASE_URL: str = "https://api.deepseek.com"
     
     # 安全配置
     SECRET_KEY: str
