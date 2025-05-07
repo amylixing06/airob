@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import HomePage from './components/HomePage.vue';
+import Workbench from './components/Workbench.vue';
 
 // 错误接口
 interface ApiError {
   message: string;
 }
 
-// 版本号 - v1.0.4
+// 版本号 - v1.1.0
 // 使用相对路径解决CORS问题
 const apiBaseUrl = '/api/v1';
 
 // 是否使用本地模拟数据（当API连接失败时）
 const useLocalMock = ref(false);
+// 当前视图模式：'home' | 'workbench'
+const currentView = ref<'home' | 'workbench'>('home');
 
 const code = ref(`<!DOCTYPE html>
 <html>
@@ -39,7 +43,6 @@ const code = ref(`<!DOCTYPE html>
 </html>`);
 
 const isGenerating = ref(false);
-const userInput = ref('');
 const error = ref('');
 const style = ref('modern');
 const styles = [
@@ -49,17 +52,6 @@ const styles = [
   { value: 'minimal', label: '极简风格' },
   { value: 'tech', label: '科技风格' }
 ];
-
-const previewSrc = computed(() => {
-  try {
-    // 创建Blob和URL以便在iframe中预览
-    const blob = new Blob([code.value], { type: 'text/html' });
-    return URL.createObjectURL(blob);
-  } catch (e) {
-    console.error('预览生成失败:', e);
-    return '';
-  }
-});
 
 // 获取用户最近的生成记录
 onMounted(async () => {
@@ -165,8 +157,8 @@ const mockGenerateHtml = (prompt: string, style: string): string => {
 </html>`;
 };
 
-const generateCode = async () => {
-  if (!userInput.value.trim()) {
+const generateCode = async (prompt: string) => {
+  if (!prompt.trim()) {
     error.value = '请输入您的需求描述';
     setTimeout(() => {
       error.value = '';
@@ -184,13 +176,10 @@ const generateCode = async () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // 生成模拟HTML
-      code.value = mockGenerateHtml(userInput.value, style.value);
+      code.value = mockGenerateHtml(prompt, style.value);
       
       // 保存到本地历史记录
-      saveToHistory(userInput.value, code.value);
-      
-      // 清空输入
-      userInput.value = '';
+      saveToHistory(prompt, code.value);
       
       return;
     }
@@ -202,7 +191,7 @@ const generateCode = async () => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        description: userInput.value,
+        description: prompt,
         style: style.value
       })
     });
@@ -215,10 +204,7 @@ const generateCode = async () => {
     code.value = data.html;
     
     // 保存到本地历史记录
-    saveToHistory(userInput.value, code.value);
-    
-    // 清空输入
-    userInput.value = '';
+    saveToHistory(prompt, code.value);
     
   } catch (e: unknown) {
     console.error('生成失败:', e);
@@ -234,8 +220,8 @@ const generateCode = async () => {
   }
 };
 
-const refineCode = async () => {
-  if (!userInput.value.trim()) {
+const refineCode = async (prompt: string) => {
+  if (!prompt.trim()) {
     error.value = '请输入您的优化需求';
     setTimeout(() => {
       error.value = '';
@@ -258,19 +244,16 @@ const refineCode = async () => {
       
       if (bodyEndPos !== -1) {
         const newHtml = currentHtml.substring(0, bodyEndPos) + 
-          `\n  <!-- 根据"${userInput.value}"进行了优化 -->\n  ` +
+          `\n  <!-- 根据"${prompt}"进行了优化 -->\n  ` +
           `<div class="refinement-note" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">` +
-          `<p><strong>优化内容：</strong> ${userInput.value}</p></div>\n` +
+          `<p><strong>优化内容：</strong> ${prompt}</p></div>\n` +
           currentHtml.substring(bodyEndPos);
         
         code.value = newHtml;
       }
       
       // 保存到本地历史记录
-      saveToHistory(userInput.value, code.value, true);
-      
-      // 清空输入
-      userInput.value = '';
+      saveToHistory(prompt, code.value, true);
       
       return;
     }
@@ -283,7 +266,7 @@ const refineCode = async () => {
       },
       body: JSON.stringify({
         originalHtml: code.value,
-        instructions: userInput.value
+        instructions: prompt
       })
     });
     
@@ -295,10 +278,7 @@ const refineCode = async () => {
     code.value = data.html;
     
     // 保存到本地历史记录
-    saveToHistory(userInput.value, code.value, true);
-    
-    // 清空输入
-    userInput.value = '';
+    saveToHistory(prompt, code.value, true);
     
   } catch (e: unknown) {
     console.error('优化失败:', e);
@@ -352,91 +332,81 @@ const downloadHTML = () => {
     error.value = '下载失败，请稍后重试';
   }
 };
+
+// 从主页切换到工作台
+const goToWorkbench = () => {
+  currentView.value = 'workbench';
+};
+
+// 处理模板选择
+const handleTemplateSelect = (templateId: number) => {
+  // 这里可以根据模板ID加载不同的初始代码
+  // 目前使用默认代码
+  goToWorkbench();
+};
+
+// 处理自定义提示词
+const handleCustomPrompt = () => {
+  goToWorkbench();
+};
 </script>
 
 <template>
   <div class="app-container">
-    <header class="header">
-      <div class="logo">Airob</div>
-      <div class="tagline">AI网页生成工具</div>
-      <div class="mode-indicator" v-if="useLocalMock">
-        [本地模拟模式]
+    <!-- 导航栏 -->
+    <header class="app-header">
+      <div class="logo" @click="currentView = 'home'">Airob</div>
+      <div class="header-center">
+        <div class="tagline">AI网页生成工具</div>
+        <div class="mode-indicator" v-if="useLocalMock">
+          [本地模拟模式]
+        </div>
       </div>
-      <div class="style-selector">
-        <span class="style-label">风格:</span>
-        <select v-model="style" class="style-dropdown">
-          <option v-for="option in styles" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
+      <div class="header-right">
+        <div class="style-selector" v-if="currentView === 'workbench'">
+          <span class="style-label">风格:</span>
+          <select v-model="style" class="style-dropdown">
+            <option v-for="option in styles" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
       </div>
     </header>
     
-    <div class="main-content">
-      <div class="editor-container">
-        <div class="file-header">
-          <span>index.html</span>
-          <button @click="downloadHTML" class="download-btn" title="下载HTML">
-            <span>下载</span>
-          </button>
-        </div>
-        <div class="editor">
-          <textarea 
-            v-model="code" 
-            class="code-input"
-            spellcheck="false"
-          ></textarea>
-        </div>
-      </div>
+    <!-- 主内容区 -->
+    <main class="app-main">
+      <!-- 主页视图 -->
+      <HomePage 
+        v-if="currentView === 'home'"
+        @select-template="handleTemplateSelect"
+        @custom-prompt="handleCustomPrompt"
+      />
       
-      <div class="preview-container">
-        <div class="file-header preview-header">
-          <span>预览</span>
-        </div>
-        <div class="preview">
-          <iframe v-if="previewSrc" :src="previewSrc" class="preview-iframe"></iframe>
-          <div class="empty-preview" v-else>
-            <div class="prompt">
-              <h1><span>准备就绪</span></h1>
-              <h2>告诉我你想要什么样的网页</h2>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <!-- 工作台视图 -->
+      <Workbench 
+        v-else
+        v-model:code="code"
+        :isGenerating="isGenerating"
+        @generate="generateCode"
+        @refine="refineCode"
+        @download="downloadHTML"
+      />
+    </main>
     
-    <footer class="footer">
-      <div class="input-container">
-        <div v-if="error" class="error-message">{{ error }}</div>
-        <input 
-          type="text" 
-          class="command-input" 
-          v-model="userInput"
-          placeholder="描述你想要的网页，或输入修改建议..." 
-          @keyup.enter="generateCode"
-        />
-        <button 
-          class="action-btn refine-btn" 
-          @click="refineCode" 
-          :disabled="isGenerating || !code.trim()"
-        >
-          <span v-if="isGenerating">处理中...</span>
-          <span v-else>优化</span>
-        </button>
-        <button 
-          class="action-btn generate-btn" 
-          @click="generateCode" 
-          :disabled="isGenerating"
-        >
-          <span v-if="isGenerating">生成中...</span>
-          <span v-else>生成</span>
-        </button>
-      </div>
-    </footer>
+    <!-- 错误提示 -->
+    <div v-if="error" class="error-message">{{ error }}</div>
   </div>
 </template>
 
 <style>
+/* 全局样式 */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -446,6 +416,7 @@ body {
   overflow: hidden;
 }
 
+/* 应用容器 */
 .app-container {
   display: flex;
   flex-direction: column;
@@ -454,7 +425,8 @@ body {
   overflow: hidden;
 }
 
-.header {
+/* 头部导航栏 */
+.app-header {
   display: flex;
   align-items: center;
   padding: 0.8rem 1.5rem;
@@ -467,12 +439,32 @@ body {
   font-size: 1.5rem;
   color: #fff;
   margin-right: 1rem;
+  cursor: pointer;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  flex: 1;
 }
 
 .tagline {
   color: #888;
   font-size: 0.9rem;
-  margin-right: auto;
+}
+
+.mode-indicator {
+  color: #ff6b6b;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  background-color: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+  margin-left: 1rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
 }
 
 .style-selector {
@@ -496,228 +488,48 @@ body {
   font-size: 0.9rem;
 }
 
-.main-content {
-  display: flex;
+/* 主内容区 */
+.app-main {
   flex: 1;
   overflow: hidden;
 }
 
-.editor-container, .preview-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.editor-container {
-  border-right: 1px solid #2a2a3c;
-  background-color: #0f0f19;
-}
-
-.file-header {
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid #2a2a3c;
-  font-size: 0.9rem;
-  color: #888;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.preview-header {
-  background-color: #1a1a27;
-  color: #888;
-}
-
-.download-btn {
-  padding: 0.25rem 0.5rem;
-  background-color: transparent;
-  border: 1px solid #2a2a3c;
-  border-radius: 4px;
-  color: #888;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.download-btn:hover {
-  background-color: #2a2a3c;
-  color: #fff;
-}
-
-.editor, .preview {
-  flex: 1;
-  overflow: auto;
-}
-
-.editor {
-  padding: 0;
-}
-
-.code-input {
-  width: 100%;
-  height: 100%;
-  background-color: #0f0f19;
-  border: none;
-  color: #ccc;
-  font-family: 'Menlo', monospace;
-  resize: none;
-  outline: none;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  padding: 1rem;
-  box-sizing: border-box;
-}
-
-.preview-container {
-  background-color: #ffffff;
-}
-
-.preview {
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  color: #000;
-  background-color: #fff;
-}
-
-.preview-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-.empty-preview {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  color: #000;
-  background-color: #f5f5f5;
-}
-
-.prompt {
-  text-align: center;
-  max-width: 600px;
-  padding: 2rem;
-}
-
-.prompt h1 {
-  font-size: 1.5rem;
-  color: #999;
-  font-weight: normal;
-  margin-bottom: 0.5rem;
-}
-
-.prompt h2 {
-  font-size: 2rem;
-  color: #000;
-  margin-top: 0;
-}
-
-.footer {
-  padding: 1rem;
-  border-top: 1px solid #2a2a3c;
-  background-color: #0f0f19;
-}
-
-.input-container {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
+/* 错误消息 */
 .error-message {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   color: #ff6b6b;
   font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-  background-color: rgba(255, 107, 107, 0.1);
+  padding: 0.8rem 1.2rem;
+  background-color: rgba(15, 15, 25, 0.9);
+  border: 1px solid rgba(255, 107, 107, 0.3);
   border-radius: 4px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   text-align: center;
+  max-width: 90%;
 }
 
-.command-input {
-  flex: 1;
-  padding: 0.7rem 1rem;
-  border: 1px solid #2a2a3c;
-  border-radius: 4px;
-  background-color: #1a1a27;
-  color: #fff;
-  outline: none;
-  margin-bottom: 0.5rem;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  padding: 0.7rem 1.2rem;
-  border: none;
-  border-radius: 4px;
-  color: #fff;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-  margin-left: 0.5rem;
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.refine-btn {
-  background-color: #444;
-}
-
-.refine-btn:hover:not(:disabled) {
-  background-color: #555;
-}
-
-.generate-btn {
-  background-color: #0066ff;
-}
-
-.generate-btn:hover:not(:disabled) {
-  background-color: #0055cc;
-}
-
-@media (min-width: 768px) {
-  .input-container {
-    flex-direction: row;
-    align-items: center;
-  }
-  
-  .command-input {
-    margin-bottom: 0;
-  }
-}
-
+/* 响应式设计 */
 @media (max-width: 768px) {
-  .main-content {
+  .app-header {
     flex-direction: column;
+    align-items: flex-start;
   }
   
-  .editor-container, .preview-container {
-    height: 50%;
+  .header-center, .header-right {
+    margin-top: 0.5rem;
     width: 100%;
   }
   
-  .editor-container {
-    border-right: none;
-    border-bottom: 1px solid #2a2a3c;
+  .style-selector {
+    width: 100%;
   }
-}
-
-.mode-indicator {
-  color: #ff6b6b;
-  font-size: 0.8rem;
-  padding: 0.2rem 0.5rem;
-  background-color: rgba(255, 107, 107, 0.1);
-  border-radius: 4px;
-  margin-right: 1rem;
+  
+  .style-dropdown {
+    flex: 1;
+  }
 }
 </style>
