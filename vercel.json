@@ -19,6 +19,7 @@
   "rewrites": [
     { "source": "/api/v1/status", "destination": "/api/v1/status.js" },
     { "source": "/api/v1/generator/generate", "destination": "/api/v1/generator/generate.js" },
+    { "source": "/api/v1/generator/generate-stream", "destination": "/api/v1/generator/generate-stream.js" },
     { "source": "/api/v1/generator/refine", "destination": "/api/v1/generator/refine.js" },
     { "source": "/(.*)", "destination": "/dist/$1" }
   ],
