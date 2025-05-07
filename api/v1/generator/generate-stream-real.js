@@ -9,8 +9,9 @@ const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
 // API调用配置
 const API_CONFIG = {
-  timeout: 300000,  // 5分钟超时
-  retries: 1       // 只重试一次
+  timeout: 280000,          // 280秒超时 (给Vercel 300秒上限留出缓冲)
+  safeMaxGenerationTime: 240000,  // 强制在240秒时结束生成 (4分钟)
+  retries: 1                // 只重试一次
 };
 
 /**
@@ -140,24 +141,67 @@ async function handleRealTimeStream(prompt, res) {
     messages: [
       {
         role: "system",
-        content: "你是一个专业的前端开发者，擅长生成高质量的HTML网页代码。请直接返回代码，不要有多余的解释。"
+        content: "你是一个专业的前端开发者，擅长生成高质量且简洁的HTML网页代码。请直接生成代码，不要有任何多余的解释。保持代码简短高效。"
       },
       {
         role: "user",
         content: prompt
       }
     ],
-    temperature: 0.5,
-    max_tokens: 4000,
-    stream: true  // 使用真实流式响应
+    temperature: 0.7,  // 略微提高创造性
+    max_tokens: 2500,  // 减少最大token，避免过长生成
+    stream: true       // 流式响应
   };
 
   try {
     // 使用AbortController实现超时
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
     
-    console.log(`开始API请求，超时设置: ${API_CONFIG.timeout/1000}秒`);
+    // 在外部保存累积的HTML，以便在超时时能访问
+    let savedAccumulatedHTML = '';
+    let lastUpdateTime = Date.now();
+    
+    // 设置主超时
+    const timeoutId = setTimeout(() => {
+      console.log('API调用超时，正常中止生成过程');
+      controller.abort();
+    }, API_CONFIG.timeout);
+    
+    // 添加安全超时，防止生成时间过长
+    const safetyTimeoutId = setTimeout(() => {
+      console.log(`达到安全超时限制 (${API_CONFIG.safeMaxGenerationTime/1000}秒)，强制结束生成`);
+      
+      // 尝试发送到目前为止生成的内容
+      try {
+        if (savedAccumulatedHTML) {
+          const elapsedTime = (Date.now() - startTime) / 1000;
+          const html = extractCodeFromText(savedAccumulatedHTML);
+          
+          // 发送生成被打断的消息
+          res.write(`data: ${JSON.stringify({ 
+            type: 'status', 
+            status: 'interrupted',
+            message: '生成时间过长，已返回部分生成的内容'
+          })}\n\n`);
+          
+          // 发送部分生成的内容
+          res.write(`data: ${JSON.stringify({ 
+            type: 'complete', 
+            html: html,
+            time: elapsedTime.toFixed(2),
+            isPartial: true
+          })}\n\n`);
+          
+          res.write('data: [DONE]\n\n');
+        }
+      } catch (e) {
+        console.error('超时发送部分结果失败:', e);
+      }
+      
+      controller.abort();
+    }, API_CONFIG.safeMaxGenerationTime);
+    
+    console.log(`开始API请求，超时设置: ${API_CONFIG.timeout/1000}秒, 安全超时: ${API_CONFIG.safeMaxGenerationTime/1000}秒`);
     const startTime = Date.now();
     
     // 发送状态更新
@@ -176,75 +220,116 @@ async function handleRealTimeStream(prompt, res) {
     // 检查响应状态
     if (!response.ok) {
       clearTimeout(timeoutId);
+      clearTimeout(safetyTimeoutId);
       const errorText = await response.text();
       console.error('DeepSeek API错误:', errorText);
       throw new Error(`DeepSeek API错误 (${response.status}): ${errorText.substring(0, 200)}`);
     }
     
-    // 处理流式响应
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let accumulatedHTML = '';
-    let buffer = '';
-    
     // 发送状态更新
     res.write(`data: ${JSON.stringify({ type: 'status', status: 'generating', message: '正在实时生成HTML...' })}\n\n`);
-    
-    console.log('开始接收流式响应...');
-    
-    while (true) {
-      const { done, value } = await reader.read();
+
+    // 直接转发原始流式响应
+    const streamDeepSeekToClient = async () => {
+      let accumulatedHTML = '';
+      let buffer = '';
       
-      if (done) {
-        console.log('流式接收完成');
-        break;
-      }
-      
-      // 解码二进制数据
-      const chunk = decoder.decode(value, { stream: true });
-      buffer += chunk;
-      
-      // 处理缓冲区中的完整数据行
-      let lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // 最后一个可能不完整
-      
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+      try {
+        const reader = response.body.getReader();
         
-        if (trimmedLine.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(trimmedLine.slice(6));
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            // 流结束
+            console.log('DeepSeek流结束');
+            break;
+          }
+          
+          // 更新最后活动时间
+          lastUpdateTime = Date.now();
+          
+          // 解码这一块数据
+          const chunk = new TextDecoder().decode(value, { stream: true });
+          buffer += chunk;
+          
+          // 处理缓冲区中的完整数据行
+          let lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // 保留最后一个不完整的行
+          
+          for (const line of lines) {
+            if (!line.trim() || !line.startsWith('data:')) continue;
             
-            if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
-              const content = data.choices[0].delta.content;
-              accumulatedHTML += content;
-              
-              // 发送增量更新
-              res.write(`data: ${JSON.stringify({ 
-                type: 'content', 
-                content: content,
-                accumulatedHTML: accumulatedHTML
-              })}\n\n`);
+            if (line.includes('[DONE]')) {
+              // 发送完成标记 (会在外部再次发送)
+              continue;
             }
-          } catch (error) {
-            console.error('解析流数据失败:', error, trimmedLine);
+            
+            try {
+              // 解析DeepSeek返回的数据
+              const data = JSON.parse(line.substring(line.indexOf(':') + 1).trim());
+              
+              if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                const textChunk = data.choices[0].delta.content;
+                accumulatedHTML += textChunk;
+                
+                // 保存当前累积的内容，以便在超时时能访问
+                savedAccumulatedHTML = accumulatedHTML;
+                
+                // 将每个块立即发送给客户端
+                res.write(`data: ${JSON.stringify({
+                  type: 'content',
+                  content: textChunk,
+                  accumulatedHTML: accumulatedHTML
+                })}\n\n`);
+                
+                // 确保数据被立即发送
+                if (res.flush) {
+                  res.flush();
+                }
+              }
+            } catch (e) {
+              console.error('解析DeepSeek事件失败:', e, line);
+            }
           }
         }
+        
+        const elapsedTime = (Date.now() - startTime) / 1000;
+        console.log(`流式生成完成，用时: ${elapsedTime.toFixed(2)}秒`);
+        
+        // 提取完整HTML
+        const html = extractCodeFromText(accumulatedHTML);
+        
+        // 发送完成事件
+        res.write(`data: ${JSON.stringify({
+          type: 'complete',
+          html: html,
+          time: elapsedTime.toFixed(2)
+        })}\n\n`);
+        
+        return { success: true, html, time: elapsedTime };
+      } catch (error) {
+        // 如果是中止错误，并且我们有部分生成的内容，返回部分内容
+        if (error.name === 'AbortError' && savedAccumulatedHTML) {
+          const elapsedTime = (Date.now() - startTime) / 1000;
+          const html = extractCodeFromText(savedAccumulatedHTML);
+          
+          console.log(`生成被中止，但返回部分内容 (${html.length} 字符)`);
+          
+          // 已经在安全超时处理程序中发送了部分内容，所以这里不重复发送
+          return { success: false, html, time: elapsedTime, interrupted: true };
+        }
+        
+        console.error('流式处理中断:', error);
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+        clearTimeout(safetyTimeoutId);
       }
-    }
+    };
     
-    clearTimeout(timeoutId);
-    const elapsedTime = (Date.now() - startTime) / 1000;
-    console.log(`流式请求完成，用时: ${elapsedTime.toFixed(2)}秒`);
-    
-    // 提取HTML代码并发送最终结果
-    const html = extractCodeFromText(accumulatedHTML);
-    res.write(`data: ${JSON.stringify({ 
-      type: 'complete', 
-      html: html,
-      time: elapsedTime.toFixed(2)
-    })}\n\n`);
+    // 执行流式传输
+    await streamDeepSeekToClient();
     
   } catch (error) {
     console.error('API调用失败:', error.message);
@@ -321,21 +406,22 @@ function createGenerationPrompt(description, style) {
       styleDescription = '现代简约风格';
   }
 
-  return `请创建一个完整的HTML网页，满足以下要求：
+  return `请创建一个简洁高效的HTML网页，满足以下要求：
 1. 页面描述：${description}
 2. 设计风格：${styleDescription}
-3. 确保HTML代码完整可运行，包含所有必要的CSS和JavaScript
-4. 页面应该是响应式的，在移动设备上也能正常显示
-5. 使用现代的HTML5和CSS3特性
-6. 不要使用任何外部库或框架，所有代码都应该内联在HTML文件中
-7. 为代码添加适当的注释
+3. 确保HTML代码完整可运行，但要保持简洁
+4. 页面应该是响应式的，使用最少代码实现
+5. 使用简洁的HTML5和CSS3
+6. 代码尽量简短，优先减少生成时间
+7. 避免过于复杂的动画和特效
 
-请直接返回HTML代码，不要包含任何解释或说明。HTML代码应该放在markdown代码块中，如下所示：
+请直接返回HTML代码，不要有任何解释。尽量减少注释和空行，使代码更精简。
+代码请放在markdown代码块中：
 
 \`\`\`html
 <!DOCTYPE html>
 <html>
-...你的代码...
+...简洁的代码...
 </html>
 \`\`\``;
 } 
