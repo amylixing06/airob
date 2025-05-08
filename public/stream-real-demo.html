@@ -340,7 +340,7 @@
                     
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
-                    let accumulatedHTML = '';
+                    let buffer = ''; // 用于存储未完成的事件数据
                     
                     while (true) {
                         const { value, done } = await reader.read();
@@ -349,16 +349,29 @@
                             break;
                         }
                         
-                        const text = decoder.decode(value);
-                        const events = text.split('\n\n').filter(e => e.trim().startsWith('data:'));
+                        // 解码收到的二进制数据
+                        const text = decoder.decode(value, { stream: true });
                         
-                        for (const event of events) {
-                            if (!event.trim()) continue;
+                        // 将新数据添加到缓冲区
+                        buffer += text;
+                        
+                        // 处理完整的事件数据行
+                        const lines = buffer.split('\n\n');
+                        
+                        // 保留最后一个可能不完整的部分
+                        buffer = lines.pop() || '';
+                        
+                        for (const eventText of lines) {
+                            if (!eventText.trim()) continue;
+                            
+                            // 提取事件数据
+                            const dataMatch = eventText.match(/^data: (.+)$/m);
+                            if (!dataMatch) continue;
+                            
+                            const dataStr = dataMatch[1].trim();
+                            if (dataStr === '[DONE]') continue;
                             
                             try {
-                                const dataStr = event.substring(event.indexOf('data:') + 5).trim();
-                                if (dataStr === '[DONE]') continue;
-                                
                                 const data = JSON.parse(dataStr);
                                 
                                 // 处理不同类型的事件
@@ -400,7 +413,7 @@
                                         break;
                                 }
                             } catch (e) {
-                                console.error('处理事件错误:', e, event);
+                                console.error('处理事件错误:', e, eventText);
                             }
                         }
                     }
