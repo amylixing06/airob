@@ -4,7 +4,7 @@
 const fetch = require('node-fetch');
 
 // 部署的基础URL - 替换为实际的Vercel部署URL
-const DEPLOYED_BASE_URL = 'https://airob.vercel.app';
+const DEPLOYED_BASE_URL = 'https://airob-idyciv78b-amylixings-projects.vercel.app';
 
 async function testDeployedAPI() {
   console.log('测试已部署的API...');
